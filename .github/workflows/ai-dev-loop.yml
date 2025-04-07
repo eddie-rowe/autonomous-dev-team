@@ -1,0 +1,56 @@
+name: AI Dev Loop
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ai_dev_loop:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests and save output
+        continue-on-error: true
+        run: |
+          npm test > test_output.txt || true
+
+      - name: Upload test output
+        uses: actions/upload-artifact@v3
+        with:
+          name: test_output
+          path: test_output.txt
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python deps
+        run: pip install openai
+
+      - name: Generate AI Patch
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/ai_patch_generator.py
+
+      - name: Apply Patch and Create Branch
+        run: |
+          if [ -f ai_patch.diff ]; then
+            BRANCH_NAME="ai-fix-$(date +%s)"
+            git checkout -b $BRANCH_NAME
+            git apply ai_patch.diff || true
+            git add .
+            git commit -m "AI Patch applied"
+            git push origin $BRANCH_NAME
+          fi
