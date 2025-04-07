@@ -1,71 +1,92 @@
-name: AI Dev Loop
+name: AI-Assisted Development Workflow
 
 on:
-  push:
-    branches: [main]
+  pull_request:
+    types:
+      - opened
+      - synchronize
+  workflow_dispatch:
+    inputs:
+      max_iterations:
+        description: 'Maximum number of iterations'
+        default: '2'
+        required: false
+      force_continue:
+        description: 'Force continue despite no changes'
+        default: false
+        type: boolean
+permissions: write-all
+
+env:
+  MAX_ITERATIONS: ${{ github.event.inputs.max_iterations || '2' }}
+  BRANCH_NAME: ${{ github.ref_name }}
+  ITERATION_FILE: '.ai-iteration'
 
 jobs:
-  ai_dev_loop:
-    runs-on: ubuntu-latest
 
+  determine-iteration:
+    runs-on: ubuntu-latest
+    outputs:
+      current_iteration: ${{ steps.get-iteration.outputs.iteration }}
+      should_continue: ${{ steps.check-continue.outputs.should_continue }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests and save output
-        continue-on-error: true
+          fetch-depth: 0
+      
+      - name: Get current iteration
+        id: get-iteration
         run: |
-          npm test > test_output.txt || true
-
-      - name: Upload test output
-        uses: actions/upload-artifact@v4
-        with:
-          name: test_output
-          path: test_output.txt
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install Python deps
-        run: pip install openai
-
-      - name: Generate AI Patch
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python .github/scripts/ai_patch_generator.py
-
-      - name: Set up Git for GitHub Actions
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://github.com/${{ github.repository }}
-    
-      - name: Authenticate with GitHub
-        run: |
-          git config --global credential.helper store
-          echo "https://${{ secrets.GITHUB_TOKEN  }}@github.com" > ~/.git-credentials
-
-      - name: Apply AI Patch
-        run: |
-          if [ -f ai_patch.diff ] && [ -s ai_patch.diff ]; then
-            git apply ai_patch.diff || true
-            git add .
-            git commit -m "AI Patch applied"
+          if [ -f $ITERATION_FILE ]; then
+            ITERATION=$(cat $ITERATION_FILE)
           else
-            echo "No valid patch found or patch file is empty."
-            exit 1
+            ITERATION=1
           fi
-
-      - name: Push changes
+          echo "iteration=$ITERATION" >> $GITHUB_OUTPUT
+          echo "Current iteration: $ITERATION"
+      
+      - name: Check if we should continue
+        id: check-continue
         run: |
-          git push origin HEAD:$(echo $GITHUB_REF | sed 's/refs\/heads\///')
+          if [ "${{ github.event.inputs.force_continue }}" == "true" ]; then
+            echo "should_continue=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if [ ${{ steps.get-iteration.outputs.iteration }} -ge $MAX_ITERATIONS ]; then
+            echo "should_continue=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "should_continue=true" >> $GITHUB_OUTPUT
+
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: AI Code Reviewer
+        uses: villesau/ai-codereviewer@v2.7.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # The GITHUB_TOKEN is there by default so you just need to keep it like it is and not necessarily need to add it as secret as it will throw an error. [More Details](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret)
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_MODEL: "gpt-4" # Optional: defaults to "gpt-4"
+          exclude: "**/*.json, **/*.tsx" # Optional: exclude patterns separated by commas
+
+
+  trigger-next-iteration:
+    needs: [determine-iteration, ai-review]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: AI Code Reviewer
+        uses: villesau/ai-codereviewer@v2.7.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # The GITHUB_TOKEN is there by default so you just need to keep it like it is and not necessarily need to add it as secret as it will throw an error. [More Details](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret)
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_MODEL: "gpt-4" # Optional: defaults to "gpt-4"
+          exclude: "**/*.json, **/*.tsx" # Optional: exclude patterns separated by commas
