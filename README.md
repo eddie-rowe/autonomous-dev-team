@@ -1,8 +1,18 @@
-# autonomous-dev-team
+
+# Where this repo is now
+
+1. working: successfully reviews pull requests and adds in-line comments
+2. next: replicate the action into several actions and change the prompt here:
+https://github.com/villesau/ai-codereviewer/blob/main/dist/index.js#L108-L115
+3. why: you can create actions that review it for different purposes: style guide, readability, cognitive load gauge
+
+
+# The Idea: Autonomous Dev Team
 
 This method embodies a new wave of “AI-native” development pipelines where models generate, test, and refine code autonomously.
 
 With a bit of glue code (Python scripts, GitHub Actions), two GPT agents can autonomously iterate on code + tests until your vertical‑farm web app is working. This pattern can be generalized to almost any software project—once your CI is your playground.
+
 
 ## Overall Flow
 
