@@ -1,9 +1,10 @@
-import openai
+from openai import OpenAI
 import os
 import subprocess
 import datetime
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# Create a client using your API key from environment variable
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 def get_test_output():
     with open("test_output.txt", "r") as f:
@@ -20,12 +21,12 @@ Test output:
 Respond with a unified diff (git diff format) only.
 """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content
 
 def save_patch(diff):
     patch_path = "ai_patch.diff"
