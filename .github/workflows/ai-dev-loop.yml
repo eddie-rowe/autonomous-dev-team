@@ -44,13 +44,23 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python .github/scripts/ai_patch_generator.py
 
-      - name: Apply Patch and Create Branch
+      - name: Set up Git
+        run: |
+          git config --global user.name "AI Bot"
+          git config --global user.email "ai-bot@example.com"
+
+      - name: Apply AI Patch and Push
         run: |
           if [ -f ai_patch.diff ]; then
             BRANCH_NAME="ai-fix-$(date +%s)"
             git checkout -b $BRANCH_NAME
+
+            # Create dirs if needed
+            grep '^+++ b/' ai_patch.diff | sed 's|+++ b/||' | xargs -I{} dirname {} | sort -u | xargs -I{} mkdir -p {}
+
             git apply ai_patch.diff || true
             git add .
             git commit -m "AI Patch applied"
             git push origin $BRANCH_NAME
           fi
+
