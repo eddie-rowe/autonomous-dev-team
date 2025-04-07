@@ -2,7 +2,7 @@
 
 This method embodies a new wave of “AI-native” development pipelines where models generate, test, and refine code autonomously.
 
-With a bit of glue code (Python scripts, GitHub Actions), two GPT agents can autonomously iterate on code + tests until your vertical‑farm web app is working. This pattern can be generalized to almost any software project—once your CI is your playground!
+With a bit of glue code (Python scripts, GitHub Actions), two GPT agents can autonomously iterate on code + tests until your vertical‑farm web app is working. This pattern can be generalized to almost any software project—once your CI is your playground.
 
 ## Overall Flow
 
@@ -117,7 +117,7 @@ jobs:
           git push origin HEAD:$(echo $GITHUB_REF | sed 's/refs\/heads\///')
 ```
 
-.github/scripts/agent_b.py would:
+1. .github/scripts/agent_b.py would:
 
 Load the test results.
 
@@ -148,11 +148,7 @@ Each time Agent B runs, it appends its analysis; Agent A reads the full history 
 ## Considerations & Tips
 
 1. Rate Limits & Costs: Each iteration consumes API calls—budget accordingly.
-
 2. Security: Never expose secrets in prompts. Use GitHub Secrets for tokens.
-
 3. Stopping Criteria: Hard‑cap at, say, 10 iterations or until tests pass.
-
 4. Human-in-the-Loop: You may want a manual approval step before merging to main.
-
 5. Test Coverage: Ensure your test suite is comprehensive; otherwise the loop can “green‑wash” missing features.
