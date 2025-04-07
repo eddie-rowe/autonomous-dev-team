@@ -44,23 +44,28 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python .github/scripts/ai_patch_generator.py
 
-      - name: Set up Git
+      - name: Set up Git for GitHub Actions
         run: |
-          git config --global user.name "AI Bot"
-          git config --global user.email "ai-bot@example.com"
-
-      - name: Apply AI Patch and Push
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://github.com/${{ github.repository }}
+    
+      - name: Authenticate with GitHub
         run: |
-          if [ -f ai_patch.diff ]; then
-            BRANCH_NAME="ai-fix-$(date +%s)"
-            git checkout -b $BRANCH_NAME
+          git config --global credential.helper store
+          echo "https://${{ secrets.GITHUB_TOKEN  }}@github.com" > ~/.git-credentials
 
-            # Create dirs if needed
-            grep '^+++ b/' ai_patch.diff | sed 's|+++ b/||' | xargs -I{} dirname {} | sort -u | xargs -I{} mkdir -p {}
-
+      - name: Apply AI Patch
+        run: |
+          if [ -f ai_patch.diff ] && [ -s ai_patch.diff ]; then
             git apply ai_patch.diff || true
             git add .
             git commit -m "AI Patch applied"
-            git push origin $BRANCH_NAME
+          else
+            echo "No valid patch found or patch file is empty."
+            exit 1
           fi
 
+      - name: Push changes
+        run: |
+          git push origin HEAD:$(echo $GITHUB_REF | sed 's/refs\/heads\///')
